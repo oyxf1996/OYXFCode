@@ -1,0 +1,41 @@
+﻿
+/****** Object:  StoredProcedure [dbo].[SP_GetPageRecords]    Script Date: 2019/11/17 9:12:07 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+/*
+** 获取指定页的记录。
+**/
+CREATE PROCEDURE [dbo].[SP_GetPageRecords]
+	@PageIndex INT,					--起始页（从1开始）
+	@PageSize INT,					--每页的最大记录数
+	@Fields NVARCHAR(MAX),			--要获取的列
+	@TableName NVARCHAR(MAX),		--表名
+	@Where NVARCHAR(MAX),			--查询条件
+	@Order NVARCHAR(MAX),			--排序表达式（*必须传递）
+	@RecordsCount INT OUTPUT		--返回数据总个数
+AS
+SET NOCOUNT ON
+DECLARE @SQL NVARCHAR(MAX)
+
+SET @SQL = 'SELECT @RecordsCount = COUNT(1) FROM ' + @TableName + (CASE WHEN @Where = '' THEN '' 
+																		ELSE ' WHERE ' + @Where
+                                                                   END)
+EXECUTE SP_EXECUTESQL @SQL, N'@RecordsCount INT OUTPUT', @RecordsCount OUTPUT
+
+SET @SQL = 'SELECT * FROM (
+				SELECT ROW_NUMBER() OVER (ORDER BY ' + @Order +') RowIndex, ' + @Fields + ' FROM ' + @TableName + (CASE WHEN @Where = '' THEN ''
+																														ELSE ' WHERE ' + @Where
+																													END) + 
+			') A WHERE RowIndex >= ' + CONVERT(VARCHAR(20), (@PageIndex -1) * @PageSize + 1) + ' AND RowIndex <= ' + CONVERT(VARCHAR(20), @PageIndex * @PageSize) + 
+			' ORDER BY RowIndex'
+EXECUTE(@SQL)
+
+SET ROWCOUNT 0
+
+GO
+
+
