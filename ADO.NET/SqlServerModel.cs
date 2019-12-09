@@ -1,20 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Data.SQLite;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Common
+namespace ADO.NET
 {
-    public class SqliteModel
+    public class SqlServerModel
     {
         public string sql;
 
-        public SQLiteParameter[] parameters;
+        public SqlParameter[] parameters;
 
-        public SqliteModel(string sql, SQLiteParameter[] parameters)
+        public SqlServerModel(string sql, SqlParameter[] parameters)
         {
             this.sql = sql;
             this.parameters = parameters;

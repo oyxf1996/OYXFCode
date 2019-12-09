@@ -53,9 +53,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Common\Common.csproj">
+    <ProjectReference Include="..\ADO.NET\ADO.NET.csproj">
       <Project>{10aa810b-6222-4208-af40-13bd01844524}</Project>
-      <Name>Common</Name>
+      <Name>ADO.NET</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
