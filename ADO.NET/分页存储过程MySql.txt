@@ -1,0 +1,31 @@
+﻿-- ----------------------------
+-- Procedure structure for SP_GetPageRecords
+-- ----------------------------
+DROP PROCEDURE IF EXISTS `SP_GetPageRecords`;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `SP_GetPageRecords`(
+    in _PageIndex int,
+    in _PageSize int,
+    in _Fields varchar(2000),  
+    in _TableName text,
+    in _Where varchar(2000), 
+    in _Order varchar(200),
+    out _RecordsCount int
+)
+begin
+	set @total = 0;
+    set @startRow = _PageSize*(_PageIndex -1);
+    set @pageSize = _PageSize; 
+    set @strsql = CONCAT('select ',_Fields,' from ',_TableName,case ifnull(_Where,'') when '' then '' else concat(' where ',_Where) end,' order by ',_Order,' limit ',@startRow,',',@pageSize);
+    prepare strsql from @strsql;
+    execute strsql;
+    deallocate prepare strsql;
+  
+		set @sumsql = CONCAT('select count(1) into @total from ',_TableName,case ifnull(_Where,'') when '' then '' else concat(' where ',_Where) end);
+		prepare sumsql from @sumsql;
+		execute sumsql;
+		deallocate prepare sumsql;
+		set _RecordsCount = @total;
+end
+;;
+DELIMITER ;
