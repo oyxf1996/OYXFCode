@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Common;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -33,7 +34,7 @@ namespace ADO.NET
                     }
                     catch (Exception ex)
                     {
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlite", "GetDataSetBySql", ex);
                     }
                     return ds;
                 }
@@ -53,7 +54,8 @@ namespace ADO.NET
             }
             catch (Exception ex)
             {
-                throw;
+                LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlite", "GetDataReaderBySql", ex);
+                return null;
             }
 
         }
@@ -80,7 +82,8 @@ namespace ADO.NET
                     }
                     catch (Exception ex)
                     {
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlite", "GetObjectBySql", ex);
+                        return null;
                     }
                 }
             }
@@ -104,7 +107,8 @@ namespace ADO.NET
                     catch (Exception ex)
                     {
                         connection.Close();
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlite", "ExecuteSql", ex);
+                        return 0;
                     }
                 }
             }
@@ -158,7 +162,8 @@ namespace ADO.NET
                     catch (Exception ex)
                     {
                         trans.Rollback();
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlite", "ExecuteSqlListByTran", ex);
+                        return 0;
                     }
                 }
             }
@@ -179,35 +184,43 @@ namespace ADO.NET
         /// <returns></returns>
         public static DataSet GetPagingData(int pageIndex, int pageSize, string fields, string tableName, string condition, string order, out int recordsCount)
         {
-            //页索引和页大小必须大于0，表名和排序字段不为空
-            if (pageIndex <= 0 || pageSize <= 0 || string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(order))
+            recordsCount = 0;
+            try
             {
-                recordsCount = 0;
-                return null;
-            }
+                //页索引和页大小必须大于0，表名和排序字段不为空
+                if (pageIndex <= 0 || pageSize <= 0 || string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(order))
+                {
+                    return null;
+                }
 
-            if (string.IsNullOrWhiteSpace(fields))
+                if (string.IsNullOrWhiteSpace(fields))
+                {
+                    fields = "*";
+                }
+
+                if (string.IsNullOrWhiteSpace(condition))
+                {
+                    condition = "1=1";
+                }
+
+                string sql = string.Format("SELECT COUNT(1) FROM {0} WHERE {1}", tableName, condition);
+                recordsCount = Convert.ToInt32(GetObjectBySql(sql, null));
+
+                sql = string.Format(@"SELECT {0} FROM {2} WHERE {3} ORDER BY {1} LIMIT {4} OFFSET {5}"
+                                            , fields
+                                            , order
+                                            , tableName
+                                            , condition
+                                            , pageSize
+                                            , (pageIndex - 1) * pageSize);
+
+                return GetDataSetBySql(sql, null);
+            }
+            catch (Exception ex)
             {
-                fields = "*";
+                LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlite", "GetPagingData", ex);
+                return new DataSet();
             }
-
-            if (string.IsNullOrWhiteSpace(condition))
-            {
-                condition = "1=1";
-            }
-
-            string sql = string.Format("SELECT COUNT(1) FROM {0} WHERE {1}", tableName, condition);
-            recordsCount = Convert.ToInt32(GetObjectBySql(sql, null));
-
-            sql = string.Format(@"SELECT {0} FROM {2} WHERE {3} ORDER BY {1} LIMIT {4} OFFSET {5}"
-                                        , fields
-                                        , order
-                                        , tableName
-                                        , condition
-                                        , pageSize
-                                        , (pageIndex - 1) * pageSize);
-
-            return GetDataSetBySql(sql, null);
         }
         
         #endregion

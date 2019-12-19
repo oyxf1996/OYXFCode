@@ -61,6 +61,10 @@
       <Project>{10aa810b-6222-4208-af40-13bd01844524}</Project>
       <Name>ADO.NET</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Common\Common.csproj">
+      <Project>{f4e8366d-abcc-48f3-861a-bf82add078ca}</Project>
+      <Name>Common</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
+using Common;
 
 namespace ADO.NET
 {
@@ -33,7 +34,7 @@ namespace ADO.NET
                     }
                     catch (Exception ex)
                     {
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperMySql", "GetDataSetBySql", ex);
                     }
                     return ds;
                 }
@@ -53,7 +54,8 @@ namespace ADO.NET
             }
             catch (Exception ex)
             {
-                throw;
+                LogHelper.WriteExceptionLog("ADO.NET", "DbHelperMySql", "GetDataReaderBySql", ex);
+                return null;
             }
 
         }
@@ -80,7 +82,8 @@ namespace ADO.NET
                     }
                     catch (Exception ex)
                     {
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperMySql", "GetObjectBySql", ex);
+                        return null;
                     }
                 }
             }
@@ -103,8 +106,8 @@ namespace ADO.NET
                     }
                     catch (Exception ex)
                     {
-                        connection.Close();
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperMySql", "ExecuteSql", ex);
+                        return 0;
                     }
                 }
             }
@@ -158,7 +161,8 @@ namespace ADO.NET
                     catch (Exception ex)
                     {
                         trans.Rollback();
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperMySql", "ExecuteSqlListByTran", ex);
+                        return 0;
                     }
                 }
             }
@@ -179,35 +183,43 @@ namespace ADO.NET
         /// <returns></returns>
         public static DataSet GetPagingData(int pageIndex, int pageSize, string fields, string tableName, string condition, string order, out int recordsCount)
         {
-            //页索引和页大小必须大于0，表名和排序字段不为空
-            if (pageIndex <= 0 || pageSize <= 0 || string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(order))
+            recordsCount = 0;
+            try
             {
-                recordsCount = 0;
-                return null;
-            }
+                //页索引和页大小必须大于0，表名和排序字段不为空
+                if (pageIndex <= 0 || pageSize <= 0 || string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(order))
+                {
+                    return null;
+                }
 
-            if (string.IsNullOrWhiteSpace(fields))
+                if (string.IsNullOrWhiteSpace(fields))
+                {
+                    fields = "*";
+                }
+
+                if (string.IsNullOrWhiteSpace(condition))
+                {
+                    condition = "1=1";
+                }
+
+                string sql = string.Format("SELECT COUNT(1) FROM {0} WHERE {1}", tableName, condition);
+                recordsCount = Convert.ToInt32(GetObjectBySql(sql, null));
+
+                sql = string.Format(@"SELECT {0} FROM {2} WHERE {3} ORDER BY {1} LIMIT {4},{5}"
+                                            , fields
+                                            , order
+                                            , tableName
+                                            , condition
+                                            , (pageIndex - 1) * pageSize
+                                            , pageSize);
+
+                return GetDataSetBySql(sql, null);
+            }
+            catch (Exception ex)
             {
-                fields = "*";
+                LogHelper.WriteExceptionLog("ADO.NET", "DbHelperMySql", "GetPagingData", ex);
+                return new DataSet();
             }
-
-            if (string.IsNullOrWhiteSpace(condition))
-            {
-                condition = "1=1";
-            }
-
-            string sql = string.Format("SELECT COUNT(1) FROM {0} WHERE {1}", tableName, condition);
-            recordsCount = Convert.ToInt32(GetObjectBySql(sql, null));
-
-            sql = string.Format(@"SELECT {0} FROM {2} WHERE {3} ORDER BY {1} LIMIT {4},{5}"
-                                        , fields
-                                        , order
-                                        , tableName
-                                        , condition
-                                        , (pageIndex - 1) * pageSize
-                                        , pageSize);
-
-            return GetDataSetBySql(sql, null);
         }
 
         /// <summary>
@@ -223,44 +235,52 @@ namespace ADO.NET
         /// <returns></returns>
         public static DataSet GetPagingDataByStoredProcedure(int pageIndex, int pageSize, string fields, string tableName, string condition, string order, out int recordsCount)
         {
-            //页索引和页大小必须大于0，表名和排序字段不为空
-            if (pageIndex <= 0 || pageSize <= 0 || string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(order))
+            recordsCount = 0;
+            try
             {
-                recordsCount = 0;
-                return null;
-            }
+                //页索引和页大小必须大于0，表名和排序字段不为空
+                if (pageIndex <= 0 || pageSize <= 0 || string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(order))
+                {
+                    return null;
+                }
 
-            if (string.IsNullOrWhiteSpace(fields))
+                if (string.IsNullOrWhiteSpace(fields))
+                {
+                    fields = "*";
+                }
+
+                if (string.IsNullOrWhiteSpace(condition))
+                {
+                    condition = "1=1";
+                }
+
+                MySqlParameter[] paras = new MySqlParameter[]{
+                    new MySqlParameter("_PageIndex",MySqlDbType.Int32),
+                    new MySqlParameter("_PageSize",MySqlDbType.Int32),
+                    new MySqlParameter("_Fields",MySqlDbType.VarChar),
+                    new MySqlParameter("_TableName",MySqlDbType.VarChar),
+                    new MySqlParameter("_Where",MySqlDbType.VarChar),
+                    new MySqlParameter("_Order",MySqlDbType.VarChar),
+                    new MySqlParameter("_RecordsCount", MySqlDbType.Int32)
+                };
+                paras[0].Value = pageIndex;
+                paras[1].Value = pageSize;
+                paras[2].Value = fields;
+                paras[3].Value = tableName;
+                paras[4].Value = condition;
+                paras[5].Value = order;
+                paras[6].Direction = ParameterDirection.Output;
+
+                DataSet ds = GetDataSetByStoredProcedure("SP_GetPageRecords", paras);
+                recordsCount = Convert.ToInt32(paras[6].Value);
+
+                return ds;
+            }
+            catch (Exception ex)
             {
-                fields = "*";
+                LogHelper.WriteExceptionLog("ADO.NET", "DbHelperMySql", "GetPagingDataByStoredProcedure", ex);
+                return new DataSet();
             }
-
-            if (string.IsNullOrWhiteSpace(condition))
-            {
-                condition = "1=1";
-            }
-
-            MySqlParameter[] paras = new MySqlParameter[]{
-                new MySqlParameter("_PageIndex",MySqlDbType.Int32),
-                new MySqlParameter("_PageSize",MySqlDbType.Int32),
-                new MySqlParameter("_Fields",MySqlDbType.VarChar),
-                new MySqlParameter("_TableName",MySqlDbType.VarChar),
-                new MySqlParameter("_Where",MySqlDbType.VarChar),
-                new MySqlParameter("_Order",MySqlDbType.VarChar),
-                new MySqlParameter("_RecordsCount", MySqlDbType.Int32)
-            };
-            paras[0].Value = pageIndex;
-            paras[1].Value = pageSize;
-            paras[2].Value = fields;
-            paras[3].Value = tableName;
-            paras[4].Value = condition;
-            paras[5].Value = order;
-            paras[6].Direction = ParameterDirection.Output;
-
-            DataSet ds = GetDataSetByStoredProcedure("SP_GetPageRecords", paras);
-            recordsCount = Convert.ToInt32(paras[6].Value);
-
-            return ds;
         }
         
         #endregion
@@ -280,12 +300,13 @@ namespace ADO.NET
                     {
                         adapter.Fill(ds);
                         command.Parameters.Clear();
+                        return ds;
                     }
                     catch (Exception ex)
                     {
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperMySql", "GetDataSetByStoredProcedure", ex);
+                        return new DataSet();
                     }
-                    return ds;
                 }
             }
         } 

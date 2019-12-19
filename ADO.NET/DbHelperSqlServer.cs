@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Common;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -32,7 +33,7 @@ namespace ADO.NET
                     }
                     catch (Exception ex)
                     {
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlServer", "GetDataSetBySql", ex);
                     }
                     return ds;
                 }
@@ -52,7 +53,8 @@ namespace ADO.NET
             }
             catch (Exception ex)
             {
-                throw;
+                LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlServer", "GetDataReaderBySql", ex);
+                return null;
             }
 
         }
@@ -79,7 +81,8 @@ namespace ADO.NET
                     }
                     catch (Exception ex)
                     {
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlServer", "GetObjectBySql", ex);
+                        return null;
                     }
                 }
             }
@@ -103,7 +106,8 @@ namespace ADO.NET
                     catch (Exception ex)
                     {
                         connection.Close();
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlServer", "ExecuteSql", ex);
+                        return 0;
                     }
                 }
             }
@@ -157,7 +161,8 @@ namespace ADO.NET
                     catch (Exception ex)
                     {
                         trans.Rollback();
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlServer", "ExecuteSqlListByTran", ex);
+                        return 0;
                     }
                 }
             }
@@ -178,37 +183,45 @@ namespace ADO.NET
         /// <returns></returns>
         public static DataSet GetPagingData(int pageIndex, int pageSize, string fields, string tableName, string condition, string order, out int recordsCount)
         {
-            //页索引和页大小必须大于0，表名和排序字段不为空
-            if (pageIndex <= 0 || pageSize <= 0 || string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(order))
+            recordsCount = 0;
+            try
             {
-                recordsCount = 0;
-                return null;
-            }
+                //页索引和页大小必须大于0，表名和排序字段不为空
+                if (pageIndex <= 0 || pageSize <= 0 || string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(order))
+                {
+                    return null;
+                }
 
-            if (string.IsNullOrWhiteSpace(fields))
-            {
-                fields = "*";
-            }
+                if (string.IsNullOrWhiteSpace(fields))
+                {
+                    fields = "*";
+                }
 
-            if (string.IsNullOrWhiteSpace(condition))
-            {
-                condition = "1=1";
-            }
+                if (string.IsNullOrWhiteSpace(condition))
+                {
+                    condition = "1=1";
+                }
 
-            string sql = string.Format("SELECT COUNT(1) FROM {0} WHERE {1}", tableName, condition);
-            recordsCount = Convert.ToInt32(GetObjectBySql(sql, null));
+                string sql = string.Format("SELECT COUNT(1) FROM {0} WHERE {1}", tableName, condition);
+                recordsCount = Convert.ToInt32(GetObjectBySql(sql, null));
 
-            sql = string.Format(@"SELECT {0} FROM (
+                sql = string.Format(@"SELECT {0} FROM (
                                             SELECT ROW_NUMBER() OVER(ORDER BY {1}) RowIndex,{0} FROM {2} WHERE {3}
                                         ) A WHERE A.RowIndex BETWEEN {4} AND {5}"
-                                        , fields
-                                        , order
-                                        , tableName
-                                        , condition
-                                        , (pageIndex - 1) * pageSize + 1
-                                        , pageIndex * pageSize);
+                                            , fields
+                                            , order
+                                            , tableName
+                                            , condition
+                                            , (pageIndex - 1) * pageSize + 1
+                                            , pageIndex * pageSize);
 
-            return GetDataSetBySql(sql, null);
+                return GetDataSetBySql(sql, null);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlServer", "GetPagingData", ex);
+                return new DataSet();
+            }
         }
 
         /// <summary>
@@ -224,44 +237,53 @@ namespace ADO.NET
         /// <returns></returns>
         public static DataSet GetPagingDataByStoredProcedure(int pageIndex, int pageSize, string fields, string tableName, string condition, string order, out int recordsCount)
         {
-            //页索引和页大小必须大于0，表名和排序字段不为空
-            if (pageIndex <= 0 || pageSize <= 0 || string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(order))
+            recordsCount = 0;
+            try
             {
-                recordsCount = 0;
-                return null;
-            }
+                //页索引和页大小必须大于0，表名和排序字段不为空
+                if (pageIndex <= 0 || pageSize <= 0 || string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(order))
+                {
+                    return null;
+                }
 
-            if (string.IsNullOrWhiteSpace(fields))
+                if (string.IsNullOrWhiteSpace(fields))
+                {
+                    fields = "*";
+                }
+
+                if (string.IsNullOrWhiteSpace(condition))
+                {
+                    condition = "1=1";
+                }
+
+                SqlParameter[] paras = new SqlParameter[]{
+                    new SqlParameter("@PageIndex",SqlDbType.Int),
+                    new SqlParameter("@PageSize",SqlDbType.Int),
+                    new SqlParameter("@Fields",SqlDbType.NVarChar),
+                    new SqlParameter("@TableName",SqlDbType.NVarChar),
+                    new SqlParameter("@Where",SqlDbType.NVarChar),
+                    new SqlParameter("@Order",SqlDbType.NVarChar),
+                    new SqlParameter("@RecordsCount", SqlDbType.Int)
+                };
+                paras[0].Value = pageIndex;
+                paras[1].Value = pageSize;
+                paras[2].Value = fields;
+                paras[3].Value = tableName;
+                paras[4].Value = condition;
+                paras[5].Value = order;
+                paras[6].Direction = ParameterDirection.Output;
+
+                DataSet ds = GetDataSetByStoredProcedure("SP_GetPageRecords", paras);
+                recordsCount = Convert.ToInt32(paras[6].Value);
+
+                return ds;
+
+            }
+            catch (Exception ex)
             {
-                fields = "*";
+                LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlServer", "GetPagingDataByStoredProcedure", ex);
+                return new DataSet();
             }
-
-            if (string.IsNullOrWhiteSpace(condition))
-            {
-                condition = "1=1";
-            }
-
-            SqlParameter[] paras = new SqlParameter[]{
-                new SqlParameter("@PageIndex",SqlDbType.Int),
-                new SqlParameter("@PageSize",SqlDbType.Int),
-                new SqlParameter("@Fields",SqlDbType.NVarChar),
-                new SqlParameter("@TableName",SqlDbType.NVarChar),
-                new SqlParameter("@Where",SqlDbType.NVarChar),
-                new SqlParameter("@Order",SqlDbType.NVarChar),
-                new SqlParameter("@RecordsCount", SqlDbType.Int)
-            };
-            paras[0].Value = pageIndex;
-            paras[1].Value = pageSize;
-            paras[2].Value = fields;
-            paras[3].Value = tableName;
-            paras[4].Value = condition;
-            paras[5].Value = order;
-            paras[6].Direction = ParameterDirection.Output;
-
-            DataSet ds = GetDataSetByStoredProcedure("SP_GetPageRecords", paras);
-            recordsCount = Convert.ToInt32(paras[6].Value);
-
-            return ds;
         }
         
         #endregion
@@ -284,7 +306,7 @@ namespace ADO.NET
                     }
                     catch (Exception ex)
                     {
-                        throw;
+                        LogHelper.WriteExceptionLog("ADO.NET", "DbHelperSqlServer", "GetDataSetByStoredProcedure", ex);
                     }
                     return ds;
                 }
