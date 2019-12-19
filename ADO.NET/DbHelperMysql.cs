@@ -5,6 +5,7 @@ using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using Common;
+using Utility;
 
 namespace ADO.NET
 {
@@ -14,7 +15,7 @@ namespace ADO.NET
         /// <summary>
         /// 链接字符串
         /// </summary>
-        private static readonly string connectionString = ConfigurationManager.ConnectionStrings["MySqlConnString"].ConnectionString;
+        private static readonly string connectionString = Config.MySqlConnString;
 
         #region 查询
         

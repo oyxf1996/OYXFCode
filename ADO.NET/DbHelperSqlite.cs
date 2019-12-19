@@ -5,6 +5,7 @@ using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Data.SQLite;
+using Utility;
 
 namespace ADO.NET
 {
@@ -14,10 +15,10 @@ namespace ADO.NET
         /// <summary>
         /// 链接字符串
         /// </summary>
-        private static readonly string connectionString = ConfigurationManager.ConnectionStrings["SqliteConnString"].ConnectionString;
+        private static readonly string connectionString = Config.SqliteConnString;
 
         #region 查询
-        
+
         public static DataSet GetDataSetBySql(string sql, params SQLiteParameter[] paras)
         {
             using (SQLiteConnection connection = new SQLiteConnection(connectionString))
