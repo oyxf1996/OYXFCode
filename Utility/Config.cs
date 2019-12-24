@@ -15,6 +15,8 @@ namespace Utility
 
         public static readonly string 网站根路径 = GetAppSetting("网站根路径");
 
+        public static readonly string wkhtmltopdf可执行文件路径 = GetAppSetting("wkhtmltopdf可执行文件路径");
+
         #region 获取配置值的方法
 
         public static string GetAppSetting(string key)
@@ -25,7 +27,12 @@ namespace Utility
         public static string GetConnectionString(string name)
         {
             return ConfigurationManager.ConnectionStrings[name].ConnectionString;
-        } 
+        }
+
+        public static string GetFullPath(string path)
+        {
+            return path.EndsWith("\\") ? path : path + "\\";
+        }
         #endregion
     }
 }
